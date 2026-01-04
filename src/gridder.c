@@ -390,9 +390,9 @@ int assign_grid_coords_and_elements(FILE *fp_out, FILE *fp_in)
    axis = actual_axis[axis_i];
    do{
         //create pointers to the parameters
-        int *num_elements;
-        int *num_regions;
-        int *num_nodes;
+        int *num_elements = NULL;
+        int *num_regions = NULL;
+        int *num_nodes = NULL;
         if(axis == 'x'){
                 num_nodes = &num_xnodes;
                 coords_ptr = xcoords;
