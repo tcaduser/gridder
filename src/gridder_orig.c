@@ -85,7 +85,7 @@ See LICENSE.md for the full text.
  *
  *Log:   /pvcs.config/grid_utilities/src/gridder.c_a  $
  *    Rev 2.0   added write fehm feature from Zora (zvd@lanl.gov)
- */
+ *
 /********************************************************************/
  /* Version 1
  * 
@@ -164,27 +164,75 @@ double zcoords[MAXNODES];
    the remaining functions are called by it.
 */
 
-int assign_grid_coords_and_elements(FILE *fp_out, FILE *fp_in);
-int assign_axis_coords( double *ptr, char axis, int *num_elems, int *num_regions, FILE *fp_in);
-void print_avs_coords( int num_xnodes, int num_ynodes, int num_znodes, int num_elems, FILE *fp_out);
-void print_zone_bounds( int num_xregions, int num_yregions, int num_zregions, int *xelems, int *yelems, int *zelems);
-void assign_elements_helper( int num_xnodes, int num_ynodes, int num_znodes, int *regionptrx, int *regionptry, int *regionptrz, int num_xregions, int num_yregions, int num_zregions, int num_dimensions, int output, FILE *fp_out);
-void assign_elements( int num_xnodes, int num_ynodes, int num_znodes, int *xelems, int *yelems, int *zelems, int num_xregions, int num_yregions, int num_dimensions, int output, FILE *fp_out);
-void print_tracer_coords(int num_xnodes, int num_ynodes, int num_znodes, FILE *fp_out);
-void print_vectors_coords( int num_xnodes, int num_ynodes, int num_znodes, FILE *fp_out);
-void print_fehm_coords(int num_xnodes, int num_ynodes, int num_znodes, int num_elems, int num_dimensions, FILE *fp_out);
-int assign_region_coords( double **x, int region_num, char axis, int *num_elems, FILE *fp_in);
+#ifndef PROTO 
+
+/* driver function */
+int assign_grid_coords_and_elements();
+
+/*  Returns number of nodes in axis. */
+int assign_axis_coords();
+
+/*  Returns number of nodes in zone. */
+int assign_region_coords(); 
+
+/*  The following functions are called by assign_region_coords()   */
+void geom(); 
+void log_it(); 
+void equal(); 
 void print_spacing_info();
-void geom( int region, char axis, int *num_divisions, double input_dx, double begin, double end, double **x, FILE *fp_in);
-void log_it( int *num_div, double input_dx, double begin, double end, double **x, int direction);
-void equal( int *num_div, double input_dx, double begin, double end, double **x, FILE *fp_in);
+void print_avs_coords();
+void print_fehm_coords();
+void print_tracer_coords();
+void print_vectors_coords();
+void print_zone_bounds(); 
+void assign_elements();
+void assign_elements_helper();
+
+#else
+
+int assign_grid_coords_and_elements(FILE *fp_out, FILE *fp_in); 
+
+int assign_axis_coords(double *ptr, char axis, int *num_elems_per_region,
+               int *num_axis_region, FILE *fp_in);	
+
+int assign_region_coords(double **ptr1, int region_num, char axis, 
+               int *num_elems_per_region, FILE *fp_in);
+
+void geom(int region_num, char axis, int num_divisions, 
+                double begin, double end, double **x, FILE *fp_in);
+void log_it(int num_divisions, double begin, double end, 
+                double **x, int direction);
+void equal(int num_divisions, double begin, double end, 
+                double **x, FILE *fp_in);
+void print_spacing_info(void);
+void print_avs_coords(int num_xnodes, int num_ynodes, int num_znodes,
+                int num_elems, FILE *fp_out);
+void print_fehm_coords(int num_xnodes, int num_ynodes, int num_znodes,
+                int num_elems, int num_dimensions, FILE *fp_out);
+void print_vectors_coords(int num_xnodes, int num_ynodes, int num_znodes,
+                int num_elems, FILE *fp_out);
+void print_tracer_coords(int num_xnodes, int num_ynodes, int num_znodes,
+                FILE *fp_out);
+void print_zone_bounds(int num_xregions,int num_yregions, int 
+                num_zregions, int *num_xelems, int *num_yelems, 
+                int *num_zelems);
+void assign_elements(int num_xnodes, int num_ynodes, int num_znodes,
+                int *num_xelems, int*num_yelems, int *zelems,
+                int num_xregions, int num_yregions, int num_dimensions,
+                int output, FILE *fp_out);
+void assign_elements_helper(int num_xnodes, int num_ynodes, int num_znodes,
+                int *num_xelems, int*num_yelems, int *zelems,
+                int num_xregions, int num_yregions, int num_dimensions,
+                int output, FILE *fp_out);
+
+#endif //PROTO
 
 /*****************************************************************************
 * MAIN
 *	
 ******************************************************************************/
 
-int main(int argc, char **argv)
+main()
 {
     FILE *fp_out, *fp_in;
     int error, file_exist;
@@ -244,10 +292,9 @@ int main(int argc, char **argv)
 	  printf("input.grid   contains input values you have generated during this run.\n");
 	printf("\nNOTE: input.grid is generated on first run and will not be overwritten.\ninput.tmp can be overwritten. To save input.tmp, cp or mv  to another file.\n");
 	printf("To repeat this run:\n");
-	if (file_exist != -1)  {
+	if (file_exist != -1) 
 	  printf("   cp input.tmp input.grid\n");
 	  printf("   gridder < input.grid\n\n"); 
-        }
 	
     }
 
@@ -267,7 +314,9 @@ int main(int argc, char **argv)
 * PURPOSE: Assigns all grid coordinates and connectivity.
 *****************************************************************************/
 
-int assign_grid_coords_and_elements(FILE *fp_out, FILE *fp_in)
+int assign_grid_coords_and_elements(fp_out, fp_in)
+FILE *fp_out; 
+FILE *fp_in;
   {
         /* Store coordinates in each axis. */
 	extern double xcoords[], ycoords[], zcoords[];
@@ -306,7 +355,7 @@ int assign_grid_coords_and_elements(FILE *fp_out, FILE *fp_in)
 	int output;
 
 	/* Counters. */
-	int i, j, error_count;
+	int i, j, k, error_count;
 
         /* Begin execution */
 
@@ -431,7 +480,7 @@ int assign_grid_coords_and_elements(FILE *fp_out, FILE *fp_in)
 	printf("\n\nWoa, that's too many nodes!  I can't handle more ");
 	printf("than %d nodes in any axis.  You're going ", MAXNODES);
 	printf("to have to start over.\n\n");
-        exit(1);
+	main();
 	return 1;
     }
 
@@ -440,7 +489,7 @@ int assign_grid_coords_and_elements(FILE *fp_out, FILE *fp_in)
 	printf("\n\nWoa, that's too many zones! I can't handle more ");
 	printf("than %d total zones in a grid. You're ", MAXZONES);
 	printf("going to have to start over.\n\n");
-        exit(1);
+	main();
 	return 1;
     }
 
@@ -543,7 +592,23 @@ int assign_grid_coords_and_elements(FILE *fp_out, FILE *fp_in)
 * 6: XZ
 * 7: YZ
 ****************************************************************************/
-void assign_elements_helper( int num_xnodes, int num_ynodes, int num_znodes, int *regionptrx, int *regionptry, int *regionptrz, int num_xregions, int num_yregions, int num_zregions, int num_dimensions, int output, FILE *fp_out)
+void assign_elements_helper(num_xnodes, num_ynodes, num_znodes, 
+			  regionptrx, regionptry, regionptrz, 
+			  num_xregions, num_yregions, num_zregions, num_dimensions, 
+			  output, fp_out)
+
+int num_xnodes;
+int num_ynodes;
+int num_znodes;
+int *regionptrx;
+int *regionptry;
+int *regionptrz;
+int num_xregions;
+int num_yregions;
+int num_zregions;
+int num_dimensions;
+int output;
+FILE *fp_out;
 {
 	if(DEBUG) printf("***>Nodes: x#: %d, y#: %d, z#: %d\n", num_xnodes, num_ynodes, num_znodes);
 	if(DEBUG) printf("***>Regions: x#: %d, y#: %d, z#: %d\n", num_xregions, num_yregions, num_zregions);
@@ -593,7 +658,12 @@ void assign_elements_helper( int num_xnodes, int num_ynodes, int num_znodes, int
 * PURPOSE:  Calculates coordinates for each axis. 
 ******************************************************************************/
 
-int assign_axis_coords( double *ptr, char axis, int *num_elems, int *num_regions, FILE *fp_in)
+int assign_axis_coords(ptr, axis, num_elems, num_regions, fp_in)
+double *ptr; 
+char axis;
+int *num_elems;
+int *num_regions;
+FILE *fp_in;
    {
 	int numr;
 		/* Stores number of regions before assigning its value to */ 
@@ -662,7 +732,13 @@ int assign_axis_coords( double *ptr, char axis, int *num_elems, int *num_regions
 * PURPOSE: Calculates coordinates within each region.	
 ******************************************************************************/
 
-int assign_region_coords( double **x, int region_num, char axis, int *num_elems, FILE *fp_in)
+int assign_region_coords(x, region_num, axis, num_elems, fp_in)
+double **x;
+int region_num;
+char axis;
+int *num_elems;
+FILE *fp_in;
+
 /* **x is the value of the first node in the array   */ 
 /* containing the coordinates for the present axis.  */
 /* *x is the address of that value.                  */
@@ -693,7 +769,7 @@ int assign_region_coords( double **x, int region_num, char axis, int *num_elems,
     int skew_factor=1;
 
     /* Counters */
-    int error_count, error_count_two; 
+    int i, error_count, error_count_two; 
 
 
 
@@ -906,7 +982,13 @@ int assign_region_coords( double **x, int region_num, char axis, int *num_elems,
 * PURPOSE:Spaces nodes equally.						     
 ******************************************************************************/
 
-void equal( int *num_div, double input_dx, double begin, double end, double **x, FILE *fp_in)
+void equal(num_div, input_dx, begin, end, x, fp_in)
+int *num_div;
+double input_dx;
+double begin;
+double end;
+double **x;
+FILE *fp_in;
    {
 	double dx;
 	int i;
@@ -935,7 +1017,15 @@ void equal( int *num_div, double input_dx, double begin, double end, double **x,
 * PURPOSE: Spaces nodes geometrically
 ******************************************************************************/
 
-void geom( int region, char axis, int *num_divisions, double input_dx, double begin, double end, double **x, FILE *fp_in)
+void geom(region, axis, num_divisions, input_dx, begin, end, x, fp_in)
+int region;
+char axis;
+int *num_divisions;
+double input_dx;
+double begin;
+double end; 
+double **x;
+FILE *fp_in;
 /* x is again a pointer to a pointer to the   */
 /* array of coordinates for the current axis. */
 
@@ -1039,7 +1129,13 @@ void geom( int region, char axis, int *num_divisions, double input_dx, double be
 /* PURPOSE: Spaces nodes logarithmically.				      */
 /******************************************************************************/
 
-void log_it( int *num_div, double input_dx, double begin, double end, double **x, int direction)
+void log_it(num_div, input_dx, begin, end, x, direction)
+int *num_div;
+double input_dx;
+double begin;
+double end;
+double **x;
+int direction;
    {
 	int i;
 		/* Counter.*/
@@ -1074,7 +1170,12 @@ void log_it( int *num_div, double input_dx, double begin, double end, double **x
 /* FUNCTION: print_avs_coords() 					      */
 /* PURPOSE: Prints coordinates to file in AVS format.				      */
 /******************************************************************************/
-void print_avs_coords( int num_xnodes, int num_ynodes, int num_znodes, int num_elems, FILE *fp_out)
+void print_avs_coords(num_xnodes, num_ynodes, num_znodes, num_elems, fp_out)
+int num_xnodes;
+int num_ynodes;
+int num_znodes;
+int num_elems;
+FILE *fp_out;
    {
 	int i, j, k;
 		/* Counters. */
@@ -1099,7 +1200,13 @@ void print_avs_coords( int num_xnodes, int num_ynodes, int num_znodes, int num_e
 /* FUNCTION: print_fehm_coords() 					      */
 /* PURPOSE: Prints coordinates to file in FEHM format.				      */
 /******************************************************************************/
-void print_fehm_coords(int num_xnodes, int num_ynodes, int num_znodes, int num_elems, int num_dimensions, FILE *fp_out)
+void print_fehm_coords(num_xnodes, num_ynodes, num_znodes, num_elems, num_dimensions, fp_out)
+int num_xnodes;
+int num_ynodes;
+int num_znodes;
+int num_elems;
+int num_dimensions;
+FILE *fp_out;
    {
 	int i, j, k;
 		/* Counters. */
@@ -1141,7 +1248,11 @@ void print_fehm_coords(int num_xnodes, int num_ynodes, int num_znodes, int num_e
  *
  */
 /*****************************************************************************/
-void print_vectors_coords( int num_xnodes, int num_ynodes, int num_znodes, FILE *fp_out)
+void print_vectors_coords(num_xnodes, num_ynodes, num_znodes, fp_out)
+int num_xnodes;
+int num_ynodes;
+int num_znodes;
+FILE *fp_out;
    {
 
 
@@ -1195,7 +1306,11 @@ void print_vectors_coords( int num_xnodes, int num_ynodes, int num_znodes, FILE 
 /* FUNCTION: print_tracer_coords         				      */
 /* PURPOSE: Prints coordinates to file in Tracer3d format.		      */
 /******************************************************************************/
-void print_tracer_coords(int num_xnodes, int num_ynodes, int num_znodes, FILE *fp_out)
+void print_tracer_coords(num_xnodes, num_ynodes, num_znodes, fp_out)
+int num_xnodes;
+int num_ynodes;
+int num_znodes;
+FILE *fp_out;
    {
 	int i;
 		/* Counter. */
@@ -1295,7 +1410,14 @@ void print_spacing_info()
 /******************************************************************************/
 
 
-void print_zone_bounds( int num_xregions, int num_yregions, int num_zregions, int *xelems, int *yelems, int *zelems)
+void print_zone_bounds(num_xregions, num_yregions, num_zregions, xelems, yelems, zelems)
+int num_xregions;
+int num_yregions;
+int num_zregions;
+int *xelems;
+int *yelems;
+int *zelems;
+
    {
 	extern double xcoords[], ycoords[], zcoords[];
 		/* Arrays containing coordinates. */
@@ -1343,7 +1465,20 @@ void print_zone_bounds( int num_xregions, int num_yregions, int num_zregions, in
 /* PURPOSE:  Calculates connectivity.					      */
 /******************************************************************************/
 
-void assign_elements( int num_xnodes, int num_ynodes, int num_znodes, int *xelems, int *yelems, int *zelems, int num_xregions, int num_yregions, int num_dimensions, int output, FILE *fp_out)
+void assign_elements( num_xnodes, num_ynodes, num_znodes, 
+                xelems, yelems, zelems, num_xregions, 
+                num_yregions, num_dimensions, output, fp_out)
+int num_xnodes;
+int num_ynodes;
+int num_znodes;
+int *xelems;
+int *yelems;
+int *zelems;
+int num_xregions;
+int num_yregions;
+int num_dimensions;
+int output;
+FILE *fp_out;
    {
 
 	int num_trials;
